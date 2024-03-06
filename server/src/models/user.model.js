@@ -32,9 +32,6 @@ const userSchema=new mongoose.Schema({
         required:true,
         unique:true,
     },
-    accessToken:{
-        type:String
-    },
     refreshToken:{
         type:String
     }
@@ -48,7 +45,7 @@ userSchema.pre("save",async function (next) {
 })
 
 userSchema.methods.isPasswordCorrect=async function (password) {
-    return await argon2.verify(password,this.password)
+    return await argon2.verify(this.password,password)
  }
 
  userSchema.methods.generateAccessToken =function () {

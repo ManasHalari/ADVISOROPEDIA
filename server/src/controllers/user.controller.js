@@ -110,3 +110,77 @@ export const registerUser=asyncHandler(async (req,res)=>{
     
 
 })
+
+export const loginUser=asyncHandler(async (req,res)=>{
+    // req body -> data
+    // username or email
+    //find the user
+    //password check
+    //access and referesh token
+    //send cookie
+
+    // req body -> data
+    const {email, username, password} = req.body
+    // console.log(email);
+
+    if (!username && !email) {
+        throw new ApiError(400, "username or email is required")
+    }
+
+    // check  email
+    const validEmail=emailValidator.validate(email);
+    if (!validEmail) {
+        throw new ApiError(400, "Email is Incorect")
+    }
+
+    // check password
+    const passwordRegEx=/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/gm
+    const validPassword=passwordRegEx.test(password);
+    if (!validPassword) {
+        throw new ApiError(400, "at least 8 characters /n must contain at least 1 uppercase letter/n 1 lowercase letter/n and 1 number/n Can contain special characters")
+        
+    }
+
+    const user = await User.findOne({
+        $or: [{username}, {email}]
+    })
+
+    if (!user) {
+        throw new ApiError(404, "User does not exist")
+    }
+
+   const isPasswordValid = await user.isPasswordCorrect(password)
+   
+   if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid user credentials")
+                        }
+
+     const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
+    
+     //we are making one more DB call bcz value of user is updated so refresh Token is new so we are making new call and  don't send password and refreshToken
+     const loggedInUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+        )
+
+     const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    loggedInUser.refreshToken=refreshToken
+    await loggedInUser.save({validateBeforeSave:false})
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200, 
+            {
+                user: loggedInUser, accessToken, refreshToken
+            },
+            "User logged In Successfully"
+        )
+    )
+})
