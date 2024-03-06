@@ -4,7 +4,7 @@ import  emailValidator from "email-validator"
 import { User } from "../models/user.model.js";
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
-
+import jwt from "jsonwebtoken"
 
 const generateAccessAndRefereshTokens = async(userId) =>{
     //why try catch? bcz there is so many DB calls it could be possible that it can fail
@@ -212,4 +212,71 @@ export const logoutUser=asyncHandler(async (req,res)=>{
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logged Out"))
+})
+
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+    // taking refresh token
+    // decode that token with secret key
+    // check that it is vaid user or not
+    //if it is vaid user than create AccessToken and RefreshToken
+    //save new RefreshToken in DB
+
+    // taking refresh token
+    const incomingRefreshToken = req?.cookies?.refreshToken || req?.body?.refreshToken
+    
+    if (!incomingRefreshToken) {
+        throw new ApiError(401, "unauthorized request")
+    }
+    
+    try {
+         // decode that token with secret key which ony contains _id
+        const decodedToken =  jwt.verify(
+            incomingRefreshToken,
+            process.env.REFRESH_TOKEN_SECRET
+        )
+         
+        if (!decodedToken) {
+            throw new ApiError(500, "refresh token is not decoded")
+        }
+       
+        const user = await User.findById(decodedToken?.id)
+        
+        if (!user) {
+            throw new ApiError(401, "Invalid refresh token")
+        }
+        // in DB and aso user contains same cookie
+        
+        if (incomingRefreshToken !== user?.refreshToken) {
+            throw new ApiError(401, "Refresh token is expired or used")
+            
+        }
+    
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+    console.log("hii");
+        const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
+        
+        //save new RefreshToken in DB
+        console.log("a:",accessToken,"b:",refreshToken)
+
+        user.refreshToken=refreshToken
+        await user.save({validateBeforeSave:false})
+        return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new ApiResponse(
+                200, 
+                {accessToken, refreshToken},
+                "Access token refreshed"
+            )
+        )
+    } catch (error) {
+        throw new ApiError(401, error?.message || "Invalid refresh token")
+    }
+
+
 })
