@@ -150,7 +150,7 @@ export const loginUser=asyncHandler(async (req,res)=>{
     }
 
    const isPasswordValid = await user.isPasswordCorrect(password)
-   
+
    if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials")
                         }
@@ -183,4 +183,33 @@ export const loginUser=asyncHandler(async (req,res)=>{
             "User logged In Successfully"
         )
     )
+})
+
+export const logoutUser=asyncHandler(async (req,res)=>{
+    //taking user id from middleware if user exits
+    //we have stored refresh token so unset it
+    //clear cookies
+
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $unset: {
+                refreshToken: 1 // this removes the field from document
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged Out"))
 })
