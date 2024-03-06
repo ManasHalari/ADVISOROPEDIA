@@ -255,7 +255,7 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
             httpOnly: true,
             secure: true
         }
-    console.log("hii");
+    
         const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
         
         //save new RefreshToken in DB
@@ -279,4 +279,43 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 
 
+})
+
+export const changeCurrentPassword = asyncHandler(async(req, res) => {
+    //first we check user is authenticate or not from that we we get _id
+    //take email and old password and new password from body
+    //check if user with email and password is available 
+    //if user exists then change the password
+
+    const {old_password,new_password}=req.body;
+
+    if (
+        [old_password,  new_password].some((field) => field?.trim === "")
+    ) {
+        throw new ApiError(400, "All fields are required")
+    }
+
+    // check password
+    const passwordRegEx=/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/gm
+    const validPassword=passwordRegEx.test(new_password);
+    if (!validPassword) {
+        throw new ApiError(400, "new password must contain at least 8 characters /n must contain at least 1 uppercase letter/n 1 lowercase letter/n and 1 number/n Can contain special characters")
+        
+    }
+    const user = await User.findById(req.user?._id)
+    //check if password is valid or not
+    const isPasswordValid=await user.isPasswordCorrect(old_password)
+
+    if (!isPasswordValid) {
+        throw new ApiError(400,"Password is incorrect")
+    }
+
+    user.password=new_password
+    //validateBeforeSave is imp that indicates that you don't need to check 
+    //validate other factors just do what i have tell you
+    await user.save({validateBeforeSave:false})
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"))
 })
