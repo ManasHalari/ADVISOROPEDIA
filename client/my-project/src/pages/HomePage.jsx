@@ -1,7 +1,16 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-unused-vars */
+import { useEffect, useState } from "react"
 import homePageImage from "../Assets/Images/homePageMainImage.png"
 import HomeLayout from "../layouts/HomeLayout.jsx"
+import axios from "axios";
 
 function HomePage() {
+    const [data,setData]=useState([]);
+    useEffect(async ()=>{
+    const response=await axios.get("frontend/api/v1/posts")     
+    console.log(response);
+    },[])
   return (
     
     <HomeLayout>
